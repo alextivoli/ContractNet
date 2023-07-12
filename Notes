@@ -1,0 +1,8 @@
+dispatcher for sending a multi-message to remote destination
+synchronization service
+improve mobile actor implementation
+partition actors service for multi-node application
+executor and provider can be considered services
+Support algorithms (election, mutual exclusion, ...)
+support MPI
+Remove MINA
