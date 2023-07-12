@@ -1,0 +1,86 @@
+PROVIDER started with behavior Provider.
+PROVIDER (actor space 12956@192.168.1.125) (behavior Provider) initialized.
+EXECUTOR started with behavior ThreadCoordinator.
+000000000 started with behavior Sender.
+EXECUTOR created 000000000 with behavior Sender.
+000000001 started with behavior Sender.
+EXECUTOR (behavior ThreadCoordinator) initialized.
+000000001 (behavior Sender) initialized.
+000000000 created 000000001 with behavior Sender.
+000000000 created 000000002 with behavior Sender.
+000000002 started with behavior Sender.
+000000000 created 000000003 with behavior Sender.
+000000002 (behavior Sender) initialized.
+000000003 started with behavior Sender.
+000000003 (behavior Sender) initialized.
+000000000 sends a message (content Status, value ALIVE) to APP.
+000000000 (behavior Sender) initialized.
+000000001 (behavior Sender) starts to process a message (content Status, value ALIVE) received from 000000000.
+000000003 (behavior Sender) starts to process a message (content Status, value ALIVE) received from 000000000.
+000000001 sends a message (content Status, value ALIVE) to APP.
+000000002 (behavior Sender) starts to process a message (content Status, value ALIVE) received from 000000000.
+000000000 (behavior Sender) starts to process a message (content Status, value ALIVE) received from 000000000.
+000000000 sends a message (content Status, value ALIVE) to APP.
+000000003 sends a message (content Status, value ALIVE) to APP.
+000000000 (behavior Sender) processed a message (content Status, value ALIVE) received from 000000000.
+000000003 (behavior Sender) processed a message (content Status, value ALIVE) received from 000000000.
+000000002 sends a message (content Status, value ALIVE) to APP.
+000000001 (behavior Sender) processed a message (content Status, value ALIVE) received from 000000000.
+000000002 (behavior Sender) processed a message (content Status, value ALIVE) received from 000000000.
+000000000 sends a message (content Status, value ALIVE) to APP.
+000000003 sends a message (content Status, value ALIVE) to APP.
+000000000 moved from Sender behavior to Receiver behavior.
+000000003 moved from Sender behavior to Receiver behavior.
+000000003 (behavior Receiver) initialized.
+000000001 sends a message (content Status, value ALIVE) to APP.
+000000002 sends a message (content Status, value ALIVE) to APP.
+000000000 (behavior Receiver) initialized.
+000000000 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000001.
+000000003 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000001.
+000000003 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000001.
+000000003 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000000.
+000000001 moved from Sender behavior to Receiver behavior.
+000000003 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000000.
+000000001 (behavior Receiver) initialized.
+000000001 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000001.
+000000000 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000001.
+000000001 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000001.
+000000001 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000000.
+000000000 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000000.
+000000000 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000000.
+000000000 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000003.
+000000000 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000003.
+000000002 moved from Sender behavior to Receiver behavior.
+000000002 (behavior Receiver) initialized.
+000000002 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000001.
+000000002 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000001.
+000000000 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000002.
+000000001 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000000.
+000000001 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000003.
+000000003 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000003.
+000000000 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000002.
+000000002 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000000.
+000000001 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000003.
+000000001 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000002.
+000000001 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000002.
+000000002 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000000.
+000000002 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000003.
+000000002 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000003.
+000000003 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000003.
+000000003 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000002.
+000000003 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000002.
+000000002 (behavior Receiver) starts to process a message (content Status, value ALIVE) received from 000000002.
+000000002 (behavior Receiver) processed a message (content Status, value ALIVE) received from 000000002.
+000000001 (behavior Receiver) killed itself.
+PROVIDER sends a message (content Kill, value KILL) to PROVIDER.
+000000003 (behavior Receiver) killed itself.
+000000000 (behavior Receiver) killed itself.
+PROVIDER (behavior Provider) starts to process a message (content Kill, value KILL) received from PROVIDER.
+PROVIDER sends a message (content Kill, value KILL) to EXECUTOR.
+PROVIDER (behavior Provider) processed a message (content Kill, value KILL) received from PROVIDER.
+PROVIDER (behavior Provider) killed itself.
+000000002 (behavior Receiver) killed itself.
+EXECUTOR (behavior ThreadCoordinator) starts to process a message (content Kill, value KILL) received from PROVIDER.
+EXECUTOR (behavior ThreadCoordinator) processed a message (content Kill, value KILL) received from PROVIDER.
+EXECUTOR (behavior ThreadCoordinator) killed itself.
+EXECUTOR execution time is 158,843,700 nanoseconds.
