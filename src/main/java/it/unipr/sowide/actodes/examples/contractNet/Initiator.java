@@ -40,9 +40,12 @@ public final class Initiator extends Behavior
   private static final long serialVersionUID = 1L;
 
   // Default configuration values.
-  private ArrayList<Reference> nWorker = new ArrayList<Reference>();
+  private Reference[] workers;
 
   private Reference master;
+
+  private final boolean isStorageEnable;
+  private final int workerNumber;
 
   /**
    * Class constructor.
@@ -59,9 +62,11 @@ public final class Initiator extends Behavior
    * @param c  the number of consumers.
    *
   **/
-  public Initiator()
+  public Initiator( final int workerNumber , final boolean isStorageEnable)
   {
-
+    this.workerNumber = workerNumber;
+    this.isStorageEnable = isStorageEnable;
+    this.workers = new Reference[this.workerNumber];
   }
 
   /** {@inheritDoc} **/
@@ -70,14 +75,12 @@ public final class Initiator extends Behavior
   {
     MessageHandler h = (m) -> {
 
-        this.master = actor(new Master());
+      for (int i = 0; i < workerNumber; i++)
+      {
+        this.workers[i] = (actor(new Worker(this.isStorageEnable)));
+      }
 
-        for (int i = 0; i < 5; i++)
-        {
-          this.nWorker.add(actor(new Worker()));
-        }
-
-
+      this.master = actor(new Master(this.workers));
 
 //        onReceive(ACCEPTALL, this.duration, t);
 
@@ -105,11 +108,26 @@ public final class Initiator extends Behavior
 
     c.addWriter(new ConsoleWriter());
 
-    //c.addWriter(new BinaryWriter("examples/buffer"));
 
+    Scanner scanner = new Scanner(System.in);
 
+    System.out.println("How many Workers? ");
 
-    c.setExecutor(new PoolCoordinator(new Initiator()));
+    int n = Integer.parseInt(scanner.next());
+
+    System.out.println("Is storage Enabled? (y/n)  \n");
+
+    String s = scanner.next();
+
+    boolean isStorageEnable = false;
+
+    if(s.equals('y') || s.equals(('Y'))){
+      isStorageEnable = true;
+    }
+
+    scanner.close();
+
+    c.setExecutor(new PoolCoordinator(new Initiator(n, isStorageEnable)));
 
     c.start();
 
