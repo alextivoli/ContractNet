@@ -5,6 +5,7 @@ import it.unipr.sowide.actodes.filtering.constraint.IsInstance;
 import it.unipr.sowide.actodes.registry.Reference;
 
 import java.sql.Timestamp;
+import java.util.HashMap;
 import java.util.Random;
 
 /**
@@ -31,12 +32,17 @@ public final class Master extends Behavior
 
   private int minPriceReceived = 101;
 
+  private int timeoutCounter = 0;
+
+  private HashMap<Reference, Integer> receivedBids = new HashMap<Reference, Integer>();
+
 
   private static final MessagePattern FIBONACCIPRICEPATTERN = MessagePattern.contentPattern(new IsInstance(MessageFibonacciPrice.class));
 
+  private static final MessagePattern FIBONACCIRECEIVEDNUMBER = MessagePattern.contentPattern(new IsInstance(MessageFibonacciNumber.class));
   private static final int MIN = 2;
 
-  private static final int MAX = 100;
+  private static final int MAX = 25;
 
   /**
    * Class constructor.
@@ -60,24 +66,34 @@ public final class Master extends Behavior
     return random.nextInt(MAX) + MIN;
   }
 
-  private void chooseWorker(int price, Reference ref){
-    if(price >= this.minPriceReceived){
-      return;
-    }
-
-    this.minPriceReceived = price;
-    this.acceptedWorker = ref;
+  private void chooseWorker(){
+    this.receivedBids.forEach( (ref, key) -> {
+      if(key == this.minPriceReceived){
+        send(ref, new MessageAcknowledgement(true) );
+      }
+    });
   }
 
   /** {@inheritDoc} **/
   @Override
   public void cases(final CaseFactory c) {
 
+
+    MessageHandler prova = (m) -> {
+      timeoutCounter ++;
+      if(timeoutCounter == references.length){
+        chooseWorker();
+
+        System.out.print("M :: "+ receivedBids +" \n");
+      }
+      return null;
+    };
+
     MessageHandler start = (m) -> {
       System.out.print("M :: I'M MASTER \n");
       MessageFibonacciNumber messageFibonacciNumber = new MessageFibonacciNumber(RandomFibonacci());
       for(int i = 0; i < references.length; i++){
-        send(references[i], messageFibonacciNumber);
+        future(references[i], messageFibonacciNumber, 2000, prova );
       }
       return null;
     };
@@ -85,23 +101,25 @@ public final class Master extends Behavior
     MessageHandler priceReceived = (m) -> {
       MessageFibonacciPrice n = (MessageFibonacciPrice) m.getContent();
       System.out.print("M :: PRICE RECEIVED : " + n.getMessageFibonacciPrice() +" \n");
-      chooseWorker(n.getMessageFibonacciPrice(), m.getSender());
+      this.receivedBids.put(m.getSender(),n.getMessageFibonacciPrice());
 
-
-
+      if(n.getMessageFibonacciPrice() < this.minPriceReceived){
+        this.minPriceReceived = n.getMessageFibonacciPrice();
+      }
       return null;
     };
 
-
-
+    MessageHandler fibonacciNumberCalculatedReceived = (m) -> {
+      MessageFibonacciNumber n = (MessageFibonacciNumber) m.getContent();
+      System.out.print("M :: NUMBER CALCULATED RECEIVED : " + n.getMessageFibonacciNumber() +" \n");
+      return null;
+    };
 
 
     c.define(KILL,DESTROYER);
     c.define(START, start);
     c.define(FIBONACCIPRICEPATTERN, priceReceived);
-
-
-
+    c.define(FIBONACCIRECEIVEDNUMBER,fibonacciNumberCalculatedReceived );
 
   }
 

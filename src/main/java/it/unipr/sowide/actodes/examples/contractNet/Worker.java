@@ -2,8 +2,10 @@ package it.unipr.sowide.actodes.examples.contractNet;
 
 import it.unipr.sowide.actodes.actor.*;
 import it.unipr.sowide.actodes.filtering.constraint.IsInstance;
+import it.unipr.sowide.actodes.registry.Reference;
 
 import java.util.HashMap;
+import java.util.Random;
 
 /**
  *
@@ -34,8 +36,20 @@ public final class Worker extends Behavior
 
   private int greatherFibonacciStored = 0;
 
+  private int kBid = 0;
+
+  private boolean bidAccepted = false;
+
+  private int fibonacciNumber = 0;
+
+  private Reference masterReference;
+
   public Worker(final boolean isStorageEnable){
     this.isStorageEnable = isStorageEnable;
+    // Create a new Random object.
+    Random random = new Random();
+    // Generate a random number between MIN and MAX.
+    this.kBid = random.nextInt(10) + 1;
   }
 
   private int getFibonacciPrice(int fibonacciNumber){
@@ -50,6 +64,13 @@ public final class Worker extends Behavior
     }
   }
 
+  private int computeFibonacci(int n){
+      if (n <= 1) {
+        return n;
+      }
+      return computeFibonacci(n - 1) + computeFibonacci(n - 2);
+  }
+
 
 
   /** {@inheritDoc} **/
@@ -58,24 +79,53 @@ public final class Worker extends Behavior
   {
 
     MessageHandler h = (m) -> {
-      System.out.print("W :: SONO IL WORKER \n");
+      System.out.print("W :: I'M WORKER \n");
 
+      return null;
+    };
+
+    MessageHandler taskTimeout = (m) -> {
+
+      if(this.bidAccepted){
+        System.out.print("W :: ACCETTATA \n");
+
+        send(this.masterReference, new MessageFibonacciNumber(computeFibonacci(this.fibonacciNumber)));
+      }else {
+        this.kBid--;
+      }
+
+      this.bidAccepted = false;
+      return null;
+    };
+
+    MessageHandler masterAccepted = (m) -> {
+
+      this.bidAccepted = true;
       return null;
     };
 
     MessageHandler fibonacciNumberReceived = (m) -> {
+      this.masterReference = m.getSender();
       MessageFibonacciNumber n = (MessageFibonacciNumber) m.getContent();
       System.out.print("W :: RICEVUTO MESSAGGIO : " + n.getMessageFibonacciNumber() +" \n");
+      this.fibonacciNumber = n.getMessageFibonacciNumber();
+      // Create a new Random object.
+      Random random = new Random();
+      // Generate a random number between MIN and MAX.
+      int isAvailable = random.nextInt(2) + 1;
 
-      int price = this.getFibonacciPrice(n.getMessageFibonacciNumber());
+      if(isAvailable == 1){
+        int price = this.getFibonacciPrice(n.getMessageFibonacciNumber());
+        System.out.print("W :: ACCETTO E INVIO PROPOSTA \n");
+        MessageFibonacciPrice messageFibonacciPrice = new MessageFibonacciPrice(price + this.kBid);
+        future(m.getSender(), messageFibonacciPrice, 3000, taskTimeout);
+      }
 
-      MessageFibonacciPrice messageFibonacciPrice = new MessageFibonacciPrice(price);
-      send(m.getSender(), messageFibonacciPrice);
       return null;
     };
 
     c.define(FIBONACCINUMBERPATTERN, fibonacciNumberReceived);
-//    c.define(FIBONACCIPROPOSALACCEPTED,...);
+    c.define(FIBONACCIPROPOSALACCEPTED,masterAccepted);
     c.define(KILL,DESTROYER);
     c.define(START, h);
 
