@@ -50,6 +50,7 @@ public final class Worker extends Behavior
     Random random = new Random();
     // Generate a random number between MIN and MAX.
     this.kBid = random.nextInt(10) + 1;
+    this.fibonacciStorage.put(0,0);
   }
 
   private int getFibonacciPrice(int fibonacciNumber){
@@ -60,7 +61,8 @@ public final class Worker extends Behavior
     if(fibonacciNumber <= this.greatherFibonacciStored){
       return 0;
     }else{
-      return fibonacciNumber - fibonacciStorage.get(this.greatherFibonacciStored);
+      System.out.print(fibonacciStorage.get(this.greatherFibonacciStored));
+      return fibonacciNumber - fibonacciStorage.size() + 1;
     }
   }
 
@@ -73,6 +75,7 @@ public final class Worker extends Behavior
         if(!this.fibonacciStorage.containsKey(n)){
           int  fibonacci = computeFibonacci(n - 1) + computeFibonacci(n - 2);
           this.fibonacciStorage.put(n, fibonacci);
+          this.greatherFibonacciStored = n;
         }
 
         return this.fibonacciStorage.get(n);
@@ -126,7 +129,7 @@ public final class Worker extends Behavior
       if(isAvailable == 1){
         int price = this.getFibonacciPrice(n.getMessageFibonacciNumber());
         System.out.print("W :: ACCETTO E INVIO PROPOSTA \n");
-        MessageFibonacciPrice messageFibonacciPrice = new MessageFibonacciPrice(price + this.kBid);
+        MessageFibonacciPrice messageFibonacciPrice = new MessageFibonacciPrice(price ); //RIMETTI KBID
         future(m.getSender(), messageFibonacciPrice, 3000, taskTimeout);
       }else{
         System.out.print("W :: RIFIUTO \n");

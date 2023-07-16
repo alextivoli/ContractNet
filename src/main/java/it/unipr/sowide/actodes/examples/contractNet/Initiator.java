@@ -115,13 +115,13 @@ public final class Initiator extends Behavior
 
     int n = Integer.parseInt(scanner.next());
 
-    System.out.println("Is storage Enabled? (y/n)  \n");
+    System.out.println("Is storage Enabled? (y/n) ");
 
     String s = scanner.next();
 
     boolean isStorageEnable = false;
 
-    if(s.equals('y') || s.equals(('Y'))){
+    if(s.equals("y") || s.equals(("Y"))){
       isStorageEnable = true;
     }
 

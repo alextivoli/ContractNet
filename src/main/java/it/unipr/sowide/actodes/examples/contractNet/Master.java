@@ -3,6 +3,9 @@ package it.unipr.sowide.actodes.examples.contractNet;
 import it.unipr.sowide.actodes.actor.*;
 import it.unipr.sowide.actodes.filtering.constraint.IsInstance;
 import it.unipr.sowide.actodes.registry.Reference;
+import org.knowm.xchart.SwingWrapper;
+import org.knowm.xchart.XYChart;
+import org.knowm.xchart.XYChartBuilder;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -101,6 +104,11 @@ public final class Master extends Behavior
   public void finish(){
     int totalcost = sum(this.prices);
     System.out.print("M :: TOTAL COST: " + totalcost + " MEAN COST: " + totalcost/50 + " NUMBER DOUBLE CHOICE: " + this.totalDoubleChoose + " \n");
+
+    XYChart chart = new XYChartBuilder().width(800).height(600).title("Int List Plot").xAxisTitle("Index")
+            .yAxisTitle("Value").build();         // Add the data series to the chart
+    chart.addSeries("Integers", null, this.prices);         // Show the chart
+    new SwingWrapper<>(chart).displayChart();
   }
 
   /** {@inheritDoc} **/
