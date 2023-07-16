@@ -68,6 +68,15 @@ public final class Worker extends Behavior
       if (n <= 1) {
         return n;
       }
+
+      if(this.isStorageEnable){
+        if(!this.fibonacciStorage.containsKey(n)){
+          int  fibonacci = computeFibonacci(n - 1) + computeFibonacci(n - 2);
+          this.fibonacciStorage.put(n, fibonacci);
+        }
+
+        return this.fibonacciStorage.get(n);
+      }
       return computeFibonacci(n - 1) + computeFibonacci(n - 2);
   }
 
@@ -88,7 +97,7 @@ public final class Worker extends Behavior
 
       if(this.bidAccepted){
         System.out.print("W :: ACCETTATA \n");
-
+        this.kBid = 10;
         send(this.masterReference, new MessageFibonacciNumber(computeFibonacci(this.fibonacciNumber)));
       }else {
         this.kBid--;
@@ -119,6 +128,10 @@ public final class Worker extends Behavior
         System.out.print("W :: ACCETTO E INVIO PROPOSTA \n");
         MessageFibonacciPrice messageFibonacciPrice = new MessageFibonacciPrice(price + this.kBid);
         future(m.getSender(), messageFibonacciPrice, 3000, taskTimeout);
+      }else{
+        System.out.print("W :: RIFIUTO \n");
+        MessageFibonacciPrice messageFibonacciPrice = new MessageFibonacciPrice(-1);
+        send(m.getSender(), messageFibonacciPrice);
       }
 
       return null;
