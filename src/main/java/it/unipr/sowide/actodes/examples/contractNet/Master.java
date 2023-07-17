@@ -14,6 +14,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.HashMap;
 
 /**
  *
@@ -35,14 +39,18 @@ public final class Master extends Behavior
   private int minPriceReceived = 9999;
   private int bidCounter = 0;
   private HashMap<Reference, Integer> receivedBids = new HashMap<Reference, Integer>();
+  private HashMap<Reference, ArrayList<Integer>> reports = new HashMap<Reference, ArrayList<Integer>>();
   private static final MessagePattern FIBONACCIPRICEPATTERN = MessagePattern.contentPattern(new IsInstance(MessageFibonacciPrice.class));
   private static final MessagePattern FIBONACCIRECEIVEDNUMBER = MessagePattern.contentPattern(new IsInstance(FibonacciResult.class));
+  private static final MessagePattern REPORTMESSAGE = MessagePattern.contentPattern(new IsInstance(ReportMessage.class));
   private static final int MIN = 2;
   private static final int MAX = 100;
   private int totalAcceptedWorkers = 0;
   private int totalCycle = 0;
   private List<Integer> prices = new ArrayList<Integer>();
   private int totalDoubleChoose = 0;
+  private int reportCounter = 0;
+  private final boolean isStorageEnable;
   /**
    * Class constructor.
    *
@@ -50,9 +58,10 @@ public final class Master extends Behavior
    * @param m  the number of messages.
    *
   **/
-  public Master(Reference[] references)
+  public Master(Reference[] references, final boolean isStorageEnable)
   {
     this.references = references;
+    this.isStorageEnable = isStorageEnable;
   }
 
 
@@ -90,7 +99,7 @@ public final class Master extends Behavior
     this.bidCounter = 0;
     this.minPriceReceived = 9999;
     this.totalAcceptedWorkers = 0;
-    TaskAnnouncement messageFibonacciNumber = new TaskAnnouncement(200);
+    TaskAnnouncement messageFibonacciNumber = new TaskAnnouncement(RandomFibonacci());
     for(int i = 0; i < references.length; i++){
       send(references[i], messageFibonacciNumber);
     }
@@ -104,10 +113,27 @@ public final class Master extends Behavior
     return sum;
   }
 
+  public void writeReportToFile(HashMap<Reference, ArrayList<Integer>> hashMap) {
+    try (BufferedWriter writer = new BufferedWriter(new FileWriter("./results/output.txt"))) {
+        writer.write("REPORT\nNumber of workers: " + this.references.length + " Storage: " + this.isStorageEnable + "\n");
+        for (Reference key : hashMap.keySet()) {
+            List<Integer> values = hashMap.get(key);
+            float mean = (float)sum(values)/values.size();
+            StringBuilder row = new StringBuilder(key + " Mean: " + mean + " bids: " + values.toString());
+            writer.write(row.toString());
+            writer.newLine();
+        }
+        int totalcost = sum(this.prices);
+        writer.write("Master :: Total price: " + totalcost + " Average transaction price: " + (float) totalcost/50 + " Simultaneous transaction count: " + this.totalDoubleChoose + " \n");
+   
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+  }
+
   public void finish(){
-    int totalcost = sum(this.prices);
-    System.out.print("M :: Total price: " + totalcost + " Average transaction price: " + (float) totalcost/50 + " Simultaneous transaction count: " + this.totalDoubleChoose + " \n");
-    XYChart chart = new XYChartBuilder().width(800).height(600).title("Price trend").xAxisTitle("Task")
+    writeReportToFile(this.reports);
+     XYChart chart = new XYChartBuilder().width(800).height(600).title("Price trend").xAxisTitle("Task")
             .yAxisTitle("Price").build();         // Add the data series to the chart
     chart.addSeries("Integers", null, this.prices);         // Show the chart
     new SwingWrapper<>(chart).displayChart();
@@ -146,13 +172,11 @@ public final class Master extends Behavior
       this.totalAcceptedWorkers --;
       System.out.print("M :: \u2705 Result received: " + n.getMessageFibonacciNumber() +" \n");
       if(this.totalAcceptedWorkers == 0){
-        if(this.totalCycle == 50){
-          finish();
+        if(this.totalCycle == 2){
             for (Reference reference : this.references) {
               System.out.print("M :: Sending kill message to: "+ reference + "\n");
               send(reference, Kill.KILL);
             }
-          send(getParent(), Kill.KILL); 
           return null;
         }
         else {
@@ -163,14 +187,27 @@ public final class Master extends Behavior
       return null;
     };
 
-   		MessageHandler killHandler = (m) -> {
-		      send(m.getSender(), Done.DONE);
-          System.out.println("M :: \uD83D\uDC80 Received kill message");
-		      return Shutdown.SHUTDOWN;
-		    };
+    MessageHandler killHandler = (m) -> {
+        send(m.getSender(), Done.DONE);
+        System.out.println("M :: \uD83D\uDC80 Received kill message");
+        return Shutdown.SHUTDOWN;
+      };
+
+    MessageHandler reportMessageHandler = (m) -> {
+        this.reportCounter++;
+        ArrayList<Integer> receivedReport = ((ReportMessage)m.getContent()).getAllBids();
+        System.out.println("M :: Received report bids from: " + m.getSender() + " " + receivedReport);
+        this.reports.put(m.getSender(), receivedReport);
+        if(this.reportCounter == this.references.length){
+          System.out.println("M :: Received all reports, start writing on file");
+          finish();
+          send(getParent(), Kill.KILL); 
+        }
+        return null;
+      };
 
 		c.define(KILL, killHandler);
-
+    c.define(REPORTMESSAGE, reportMessageHandler);
     c.define(START, start);
     c.define(FIBONACCIPRICEPATTERN, priceReceived);
     c.define(FIBONACCIRECEIVEDNUMBER,fibonacciNumberCalculatedReceived );

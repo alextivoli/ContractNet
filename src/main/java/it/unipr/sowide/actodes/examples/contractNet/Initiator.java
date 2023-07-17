@@ -80,7 +80,7 @@ public final class Initiator extends Behavior
         this.workers[i] = (actor(new Worker(this.isStorageEnable)));
       }
 
-      this.master = actor(new Master(this.workers));
+      this.master = actor(new Master(this.workers, this.isStorageEnable));
 
 
       return null;

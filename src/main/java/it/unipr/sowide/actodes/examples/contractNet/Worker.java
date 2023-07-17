@@ -7,6 +7,7 @@ import it.unipr.sowide.actodes.interaction.Done;
 import it.unipr.sowide.actodes.registry.Reference;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
 
@@ -39,7 +40,11 @@ public final class Worker extends Behavior
 
   private int greatherFibonacciStored = 0;
 
+  private ArrayList<Integer> bids = new ArrayList<Integer>();
+
   private int kBid = 0;
+
+  private int bid;
 
   private boolean bidAccepted = false;
 
@@ -49,9 +54,7 @@ public final class Worker extends Behavior
 
   public Worker(final boolean isStorageEnable){
     this.isStorageEnable = isStorageEnable;
-    // Create a new Random object.
     Random random = new Random();
-    // Generate a random number between MIN and MAX.
     this.kBid = random.nextInt(10) + 1;
     this.fibonacciStorage.put(0,BigInteger.ZERO);
   }
@@ -103,6 +106,7 @@ public final class Worker extends Behavior
 
       if(this.bidAccepted){
         System.out.print("W :: \uD83E\uDD11 Bid accepted by Master \n");
+        this.bids.add(this.bid);
         this.kBid = 10;
         send(this.masterReference, new FibonacciResult(computeFibonacci(BigInteger.valueOf(this.fibonacciNumber))));
       }else {
@@ -130,9 +134,9 @@ public final class Worker extends Behavior
       int isAvailable = random.nextInt(2) + 1;
 
       if(isAvailable == 1){
-        int price = this.getFibonacciPrice(n.getMessageFibonacciNumber());
-        System.out.print("W :: I'm available, sending price offer: " + price + this.kBid + "\n");
-        MessageFibonacciPrice messageFibonacciPrice = new MessageFibonacciPrice(price + this.kBid); //RIMETTI KBID
+        this.bid = this.getFibonacciPrice(n.getMessageFibonacciNumber()) + this.kBid;
+        System.out.print("W :: I'm available, sending price offer: " + bid + "\n");
+        MessageFibonacciPrice messageFibonacciPrice = new MessageFibonacciPrice(this.bid ); //RIMETTI KBID
         future(m.getSender(), messageFibonacciPrice, 3000, taskTimeout);
       }else{
         System.out.print("W :: I'm not available, sending -1 \n");
@@ -145,8 +149,8 @@ public final class Worker extends Behavior
 
     		
 		MessageHandler killHandler = (m) -> {
-		      send(m.getSender(), Done.DONE);
-          System.out.println("W :: \uD83D\uDC80 Received kill message");
+          System.out.println("W :: \uD83D\uDC80 Received kill message, sending my trend to the master");
+          send(m.getSender(), new ReportMessage(this.bids));
 		      return Shutdown.SHUTDOWN;
 		    };
 

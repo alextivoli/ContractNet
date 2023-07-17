@@ -1,0 +1,8 @@
+REPORT
+Number of workers: 5 Storage: true
+000000004.3497@192.168.1.3 Mean: NaN bids: []
+000000001.3497@192.168.1.3 Mean: 30.5 bids: [51, 10]
+000000005.3497@192.168.1.3 Mean: NaN bids: []
+000000003.3497@192.168.1.3 Mean: NaN bids: []
+000000002.3497@192.168.1.3 Mean: 30.5 bids: [51, 10]
+Master :: Total price: 122 Average transaction price: 2.44 Simultaneous transaction count: 2 
