@@ -1,9 +1,12 @@
 package it.unipr.sowide.actodes.examples.contractNet;
 
 import it.unipr.sowide.actodes.actor.*;
+import it.unipr.sowide.actodes.actor.Shutdown;
 import it.unipr.sowide.actodes.filtering.constraint.IsInstance;
+import it.unipr.sowide.actodes.interaction.Done;
 import it.unipr.sowide.actodes.registry.Reference;
 
+import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Random;
 
@@ -21,7 +24,7 @@ import java.util.Random;
 public final class Worker extends Behavior
 {
 
-  private static final MessagePattern FIBONACCINUMBERPATTERN = MessagePattern.contentPattern(new IsInstance(MessageFibonacciNumber.class));
+  private static final MessagePattern FIBONACCINUMBERPATTERN = MessagePattern.contentPattern(new IsInstance(TaskAnnouncement.class));
 
   private static final MessagePattern FIBONACCIPROPOSALACCEPTED = MessagePattern.contentPattern(new IsInstance(MessageAcknowledgement.class));
 
@@ -32,7 +35,7 @@ public final class Worker extends Behavior
 
   private final boolean isStorageEnable;
 
-  private HashMap<Integer, Integer> fibonacciStorage = new HashMap<Integer, Integer>();
+  private HashMap<Integer, BigInteger> fibonacciStorage = new HashMap<Integer, BigInteger>();
 
   private int greatherFibonacciStored = 0;
 
@@ -50,7 +53,7 @@ public final class Worker extends Behavior
     Random random = new Random();
     // Generate a random number between MIN and MAX.
     this.kBid = random.nextInt(10) + 1;
-    this.fibonacciStorage.put(0,0);
+    this.fibonacciStorage.put(0,BigInteger.ZERO);
   }
 
   private int getFibonacciPrice(int fibonacciNumber){
@@ -66,21 +69,21 @@ public final class Worker extends Behavior
     }
   }
 
-  private int computeFibonacci(int n){
-      if (n <= 1) {
+  private BigInteger computeFibonacci(BigInteger n){
+      if (n.intValue() <= 1) {
         return n;
       }
 
       if(this.isStorageEnable){
-        if(!this.fibonacciStorage.containsKey(n)){
-          int  fibonacci = computeFibonacci(n - 1) + computeFibonacci(n - 2);
-          this.fibonacciStorage.put(n, fibonacci);
-          this.greatherFibonacciStored = n;
+        if(!this.fibonacciStorage.containsKey(n.intValue())){
+          BigInteger fibonacci = computeFibonacci(n.subtract(BigInteger.ONE)).add(computeFibonacci(n.subtract(BigInteger.TWO)));
+          this.fibonacciStorage.put(n.intValue(), fibonacci);
+          this.greatherFibonacciStored = n.intValue();
         }
 
-        return this.fibonacciStorage.get(n);
+        return this.fibonacciStorage.get(n.intValue());
       }
-      return computeFibonacci(n - 1) + computeFibonacci(n - 2);
+      return computeFibonacci(n.subtract(BigInteger.ONE)).add(computeFibonacci(n.subtract(BigInteger.TWO)));
   }
 
 
@@ -91,7 +94,7 @@ public final class Worker extends Behavior
   {
 
     MessageHandler h = (m) -> {
-      System.out.print("W :: I'M WORKER \n");
+      System.out.print("W :: Worker online \n");
 
       return null;
     };
@@ -99,9 +102,9 @@ public final class Worker extends Behavior
     MessageHandler taskTimeout = (m) -> {
 
       if(this.bidAccepted){
-        System.out.print("W :: ACCETTATA \n");
+        System.out.print("W :: \uD83E\uDD11 Bid accepted by Master \n");
         this.kBid = 10;
-        send(this.masterReference, new MessageFibonacciNumber(computeFibonacci(this.fibonacciNumber)));
+        send(this.masterReference, new FibonacciResult(computeFibonacci(BigInteger.valueOf(this.fibonacciNumber))));
       }else {
         this.kBid--;
       }
@@ -118,8 +121,8 @@ public final class Worker extends Behavior
 
     MessageHandler fibonacciNumberReceived = (m) -> {
       this.masterReference = m.getSender();
-      MessageFibonacciNumber n = (MessageFibonacciNumber) m.getContent();
-      System.out.print("W :: RICEVUTO MESSAGGIO : " + n.getMessageFibonacciNumber() +" \n");
+      TaskAnnouncement n = (TaskAnnouncement) m.getContent();
+      System.out.print("W :: Received fibonacci number to compute: " + n.getMessageFibonacciNumber() +" \n");
       this.fibonacciNumber = n.getMessageFibonacciNumber();
       // Create a new Random object.
       Random random = new Random();
@@ -128,11 +131,11 @@ public final class Worker extends Behavior
 
       if(isAvailable == 1){
         int price = this.getFibonacciPrice(n.getMessageFibonacciNumber());
-        System.out.print("W :: ACCETTO E INVIO PROPOSTA \n");
-        MessageFibonacciPrice messageFibonacciPrice = new MessageFibonacciPrice(price ); //RIMETTI KBID
+        System.out.print("W :: I'm available, sending price offer: " + price + this.kBid + "\n");
+        MessageFibonacciPrice messageFibonacciPrice = new MessageFibonacciPrice(price + this.kBid); //RIMETTI KBID
         future(m.getSender(), messageFibonacciPrice, 3000, taskTimeout);
       }else{
-        System.out.print("W :: RIFIUTO \n");
+        System.out.print("W :: I'm not available, sending -1 \n");
         MessageFibonacciPrice messageFibonacciPrice = new MessageFibonacciPrice(-1);
         send(m.getSender(), messageFibonacciPrice);
       }
@@ -140,9 +143,17 @@ public final class Worker extends Behavior
       return null;
     };
 
+    		
+		MessageHandler killHandler = (m) -> {
+		      send(m.getSender(), Done.DONE);
+          System.out.println("W :: \uD83D\uDC80 Received kill message");
+		      return Shutdown.SHUTDOWN;
+		    };
+
+		c.define(KILL, killHandler);
+
     c.define(FIBONACCINUMBERPATTERN, fibonacciNumberReceived);
     c.define(FIBONACCIPROPOSALACCEPTED,masterAccepted);
-    c.define(KILL,DESTROYER);
     c.define(START, h);
 
   }

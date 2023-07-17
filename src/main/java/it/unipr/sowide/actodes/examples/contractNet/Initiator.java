@@ -82,12 +82,19 @@ public final class Initiator extends Behavior
 
       this.master = actor(new Master(this.workers));
 
-//        onReceive(ACCEPTALL, this.duration, t);
 
       return null;
     };
 
+    MessageHandler terminateApp = (m) -> {
+      send(m.getSender(), Kill.KILL);
+      send(APP, Kill.KILL);
+      send(SpaceInfo.INFO.getBroker(), Kill.KILL);
+				
+      return Shutdown.SHUTDOWN;
+    };
     c.define(START, h);
+    c.define(KILL,terminateApp);
   }
 
   /**

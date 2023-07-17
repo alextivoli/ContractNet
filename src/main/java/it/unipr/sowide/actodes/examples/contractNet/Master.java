@@ -1,7 +1,10 @@
 package it.unipr.sowide.actodes.examples.contractNet;
 
 import it.unipr.sowide.actodes.actor.*;
+import it.unipr.sowide.actodes.actor.Shutdown;
 import it.unipr.sowide.actodes.filtering.constraint.IsInstance;
+import it.unipr.sowide.actodes.interaction.Done;
+import it.unipr.sowide.actodes.interaction.Kill;
 import it.unipr.sowide.actodes.registry.Reference;
 import org.knowm.xchart.SwingWrapper;
 import org.knowm.xchart.XYChart;
@@ -33,9 +36,9 @@ public final class Master extends Behavior
   private int bidCounter = 0;
   private HashMap<Reference, Integer> receivedBids = new HashMap<Reference, Integer>();
   private static final MessagePattern FIBONACCIPRICEPATTERN = MessagePattern.contentPattern(new IsInstance(MessageFibonacciPrice.class));
-  private static final MessagePattern FIBONACCIRECEIVEDNUMBER = MessagePattern.contentPattern(new IsInstance(MessageFibonacciNumber.class));
+  private static final MessagePattern FIBONACCIRECEIVEDNUMBER = MessagePattern.contentPattern(new IsInstance(FibonacciResult.class));
   private static final int MIN = 2;
-  private static final int MAX = 25;
+  private static final int MAX = 100;
   private int totalAcceptedWorkers = 0;
   private int totalCycle = 0;
   private List<Integer> prices = new ArrayList<Integer>();
@@ -65,13 +68,14 @@ public final class Master extends Behavior
   private void chooseWorker(){
     if(this.receivedBids.size() == 0){
       startFibonacci();
-    }else{
+    }
+    else {
       this.totalCycle++;
       this.receivedBids.forEach( (ref, key) -> {
         if(key == this.minPriceReceived){
-          this.totalAcceptedWorkers ++ ;
+          this.totalAcceptedWorkers++;
           this.prices.add(this.minPriceReceived);
-          send(ref, new MessageAcknowledgement(true) );
+          send(ref, new MessageAcknowledgement(true));
         }
       });
 
@@ -82,12 +86,11 @@ public final class Master extends Behavior
   }
 
   public void startFibonacci(){
-
     this.receivedBids.clear();
     this.bidCounter = 0;
     this.minPriceReceived = 9999;
     this.totalAcceptedWorkers = 0;
-    MessageFibonacciNumber messageFibonacciNumber = new MessageFibonacciNumber(RandomFibonacci());
+    TaskAnnouncement messageFibonacciNumber = new TaskAnnouncement(200);
     for(int i = 0; i < references.length; i++){
       send(references[i], messageFibonacciNumber);
     }
@@ -103,10 +106,9 @@ public final class Master extends Behavior
 
   public void finish(){
     int totalcost = sum(this.prices);
-    System.out.print("M :: TOTAL COST: " + totalcost + " MEAN COST: " + totalcost/50 + " NUMBER DOUBLE CHOICE: " + this.totalDoubleChoose + " \n");
-
-    XYChart chart = new XYChartBuilder().width(800).height(600).title("Int List Plot").xAxisTitle("Index")
-            .yAxisTitle("Value").build();         // Add the data series to the chart
+    System.out.print("M :: Total price: " + totalcost + " Average transaction price: " + (float) totalcost/50 + " Simultaneous transaction count: " + this.totalDoubleChoose + " \n");
+    XYChart chart = new XYChartBuilder().width(800).height(600).title("Price trend").xAxisTitle("Task")
+            .yAxisTitle("Price").build();         // Add the data series to the chart
     chart.addSeries("Integers", null, this.prices);         // Show the chart
     new SwingWrapper<>(chart).displayChart();
   }
@@ -115,9 +117,8 @@ public final class Master extends Behavior
   @Override
   public void cases(final CaseFactory c) {
 
-
     MessageHandler start = (m) -> {
-      System.out.print("M :: I'M MASTER \n");
+      System.out.print("M :: Master online\n");
       startFibonacci();
       return null;
     };
@@ -126,45 +127,50 @@ public final class Master extends Behavior
       MessageFibonacciPrice n = (MessageFibonacciPrice) m.getContent();
       this.bidCounter++;
       if(n.getMessageFibonacciPrice() == -1){
-        System.out.print("M :: WORKER NON DISPONIBILE \n");
+        System.out.print("M :: \uD83D\uDEAB Worker with id: " + m.getSender() + " not available. \n");
       }else{
-        System.out.print("M :: PRICE RECEIVED : " + n.getMessageFibonacciPrice() +" \n");
+        System.out.print("M :: \uD83D\uDCB5 Worker with id: " + m.getSender() + " wants: " + n.getMessageFibonacciPrice() +" \n");
         this.receivedBids.put(m.getSender(),n.getMessageFibonacciPrice());
-
         if(n.getMessageFibonacciPrice() < this.minPriceReceived){
           this.minPriceReceived = n.getMessageFibonacciPrice();
         }
       }
-
       if(bidCounter == references.length){
-        System.out.print("M :: "+ receivedBids +" \n");
         chooseWorker();
       }
       return null;
     };
 
     MessageHandler fibonacciNumberCalculatedReceived = (m) -> {
-      MessageFibonacciNumber n = (MessageFibonacciNumber) m.getContent();
+      FibonacciResult n = (FibonacciResult) m.getContent();
       this.totalAcceptedWorkers --;
-      System.out.print("M :: NUMBER CALCULATED RECEIVED : " + n.getMessageFibonacciNumber() +" \n");
+      System.out.print("M :: \u2705 Result received: " + n.getMessageFibonacciNumber() +" \n");
       if(this.totalAcceptedWorkers == 0){
-        System.out.print("M :: " + this.totalCycle + "\n");
-        if(this.totalCycle == 5){
-          System.out.print("UCCIDO TUTTO");
-            for (Reference reference : this.references) {
-              send(reference, KILL);
-            }
+        if(this.totalCycle == 50){
           finish();
-          return Shutdown.SHUTDOWN;
+            for (Reference reference : this.references) {
+              System.out.print("M :: Sending kill message to: "+ reference + "\n");
+              send(reference, Kill.KILL);
+            }
+          send(getParent(), Kill.KILL); 
+          return null;
         }
-        startFibonacci();
+        else {
+          startFibonacci();
+        }
       }
 
       return null;
     };
 
+   		MessageHandler killHandler = (m) -> {
+		      send(m.getSender(), Done.DONE);
+          System.out.println("M :: \uD83D\uDC80 Received kill message");
+		      return Shutdown.SHUTDOWN;
+		    };
 
-    c.define(KILL,DESTROYER);
+		c.define(KILL, killHandler);
+
     c.define(START, start);
     c.define(FIBONACCIPRICEPATTERN, priceReceived);
     c.define(FIBONACCIRECEIVEDNUMBER,fibonacciNumberCalculatedReceived );
