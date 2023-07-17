@@ -45,7 +45,7 @@ public final class Initiator extends Behavior
   private Reference master;
 
   private final boolean isStorageEnable;
-  private final int workerNumber;
+  private final int nWorkers;
 
   /**
    * Class constructor.
@@ -62,27 +62,23 @@ public final class Initiator extends Behavior
    * @param c  the number of consumers.
    *
   **/
-  public Initiator( final int workerNumber , final boolean isStorageEnable)
+  public Initiator( final int nWorkers , final boolean isStorageEnable)
   {
-    this.workerNumber = workerNumber;
+    this.nWorkers = nWorkers;
     this.isStorageEnable = isStorageEnable;
-    this.workers = new Reference[this.workerNumber];
+    this.workers = new Reference[this.nWorkers];
   }
 
   /** {@inheritDoc} **/
   @Override
   public void cases(final CaseFactory c)
   {
-    MessageHandler h = (m) -> {
-
-      for (int i = 0; i < workerNumber; i++)
+    MessageHandler startHandler = (m) -> {
+      for (int i = 0; i < nWorkers; i++)
       {
         this.workers[i] = (actor(new Worker(this.isStorageEnable)));
       }
-
       this.master = actor(new Master(this.workers, this.isStorageEnable));
-
-
       return null;
     };
 
@@ -93,7 +89,8 @@ public final class Initiator extends Behavior
 				
       return Shutdown.SHUTDOWN;
     };
-    c.define(START, h);
+
+    c.define(START, startHandler);
     c.define(KILL,terminateApp);
   }
 

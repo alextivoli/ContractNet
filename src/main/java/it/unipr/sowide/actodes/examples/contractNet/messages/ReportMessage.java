@@ -1,4 +1,4 @@
-package it.unipr.sowide.actodes.examples.contractNet;
+package it.unipr.sowide.actodes.examples.contractNet.messages;
 
 import java.util.ArrayList;
 

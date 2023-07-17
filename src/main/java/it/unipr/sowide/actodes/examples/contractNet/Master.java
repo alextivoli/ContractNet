@@ -2,11 +2,18 @@ package it.unipr.sowide.actodes.examples.contractNet;
 
 import it.unipr.sowide.actodes.actor.*;
 import it.unipr.sowide.actodes.actor.Shutdown;
+import it.unipr.sowide.actodes.examples.contractNet.messages.FibonacciResult;
+import it.unipr.sowide.actodes.examples.contractNet.messages.AcknowledgmentMessage;
+import it.unipr.sowide.actodes.examples.contractNet.messages.FibonacciBid;
+import it.unipr.sowide.actodes.examples.contractNet.messages.ReportMessage;
+import it.unipr.sowide.actodes.examples.contractNet.messages.TaskAnnouncement;
 import it.unipr.sowide.actodes.filtering.constraint.IsInstance;
 import it.unipr.sowide.actodes.interaction.Done;
 import it.unipr.sowide.actodes.interaction.Kill;
 import it.unipr.sowide.actodes.registry.Reference;
-import org.knowm.xchart.SwingWrapper;
+
+import org.knowm.xchart.BitmapEncoder;
+import org.knowm.xchart.BitmapEncoder.BitmapFormat;
 import org.knowm.xchart.XYChart;
 import org.knowm.xchart.XYChartBuilder;
 
@@ -17,10 +24,9 @@ import java.util.Random;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.HashMap;
 
 /**
- *
+ * @TODO
  * The {@code Master} class defines a behavior that cyclically selects
  * randomly a {@code Worker} actor until the number of selected actor
  * becomes equal to the number of workers. Moreover, after the selection
@@ -35,14 +41,14 @@ import java.util.HashMap;
 public final class Master extends Behavior
 {
   private static final long serialVersionUID = 1L;
-  private Reference[] references;
-  private int minPriceReceived = 9999;
-  private int bidCounter = 0;
-  private HashMap<Reference, Integer> receivedBids = new HashMap<Reference, Integer>();
+  private Reference[] workers;
+  private int minPriceReceived = 1000;
+  private int bidsReceivedCounter = 0;
+  private HashMap<Reference, Integer> validBidsReceived = new HashMap<Reference, Integer>();
   private HashMap<Reference, ArrayList<Integer>> reports = new HashMap<Reference, ArrayList<Integer>>();
-  private static final MessagePattern FIBONACCIPRICEPATTERN = MessagePattern.contentPattern(new IsInstance(MessageFibonacciPrice.class));
-  private static final MessagePattern FIBONACCIRECEIVEDNUMBER = MessagePattern.contentPattern(new IsInstance(FibonacciResult.class));
-  private static final MessagePattern REPORTMESSAGE = MessagePattern.contentPattern(new IsInstance(ReportMessage.class));
+  private static final MessagePattern FIBONACCIBIDPATTERN = MessagePattern.contentPattern(new IsInstance(FibonacciBid.class));
+  private static final MessagePattern FIBONACCIRESULTPATTERN = MessagePattern.contentPattern(new IsInstance(FibonacciResult.class));
+  private static final MessagePattern REPORTMESSAGEPATTERN = MessagePattern.contentPattern(new IsInstance(ReportMessage.class));
   private static final int MIN = 2;
   private static final int MAX = 100;
   private int totalAcceptedWorkers = 0;
@@ -51,40 +57,50 @@ public final class Master extends Behavior
   private int totalDoubleChoose = 0;
   private int reportCounter = 0;
   private final boolean isStorageEnable;
+  private long startTime;
+  private long endTime;
+
   /**
-   * Class constructor.
+   * Constructor for the Master class.
    *
-   * @param w  the number of workers.
-   * @param m  the number of messages.
-   *
-  **/
-  public Master(Reference[] references, final boolean isStorageEnable)
+   * @param workers An array of worker references representing the workers in the distributed system.
+   *                Each worker reference is an identifier for a worker node that participates in the system.
+   * @param isStorageEnable A boolean indicating whether storage is enabled in the system.
+   *                        If true, storage is enabled; if false, storage is disabled.
+   */
+  public Master(Reference[] workers, final boolean isStorageEnable)
   {
-    this.references = references;
+    this.workers = workers;
     this.isStorageEnable = isStorageEnable;
   }
 
-
+  /**
+   * Generate a random Fibonacci number within a specified range.
+   *
+   * @return A random Fibonacci number.
+   */
   public int RandomFibonacci(){
-
-    // Create a new Random object.
     Random random = new Random();
-
-    // Generate a random number between MIN and MAX.
     return random.nextInt(MAX) + MIN;
   }
 
+  /**
+   * Choose the worker to accept based on the received bids and the minimum price received.
+   * If no valid bids were received, restart the Fibonacci sequence.
+   * Otherwise, iterate through the valid bids and accept the workers with the minimum price received.
+   * If multiple workers have the minimum price, accept all of them and record the occurrence of double choose.
+   */
   private void chooseWorker(){
-    if(this.receivedBids.size() == 0){
+    if(this.validBidsReceived.size() == 0){
       startFibonacci();
     }
     else {
       this.totalCycle++;
-      this.receivedBids.forEach( (ref, key) -> {
+      this.validBidsReceived.forEach( (ref, key) -> {
         if(key == this.minPriceReceived){
           this.totalAcceptedWorkers++;
           this.prices.add(this.minPriceReceived);
-          send(ref, new MessageAcknowledgement(true));
+          send(ref, new AcknowledgmentMessage(true));
         }
       });
 
@@ -94,17 +110,28 @@ public final class Master extends Behavior
     }
   }
 
+  /**
+   * Start the Fibonacci sequence by sending a TaskAnnouncement message with a random Fibonacci number
+   * to all workers in the 'workers' array. Reset relevant variables to their initial values for the
+   * new cycle of worker selection.
+   */
   public void startFibonacci(){
-    this.receivedBids.clear();
-    this.bidCounter = 0;
-    this.minPriceReceived = 9999;
+    this.validBidsReceived.clear();
+    this.bidsReceivedCounter = 0;
+    this.minPriceReceived = 1000;
     this.totalAcceptedWorkers = 0;
     TaskAnnouncement messageFibonacciNumber = new TaskAnnouncement(RandomFibonacci());
-    for(int i = 0; i < references.length; i++){
-      send(references[i], messageFibonacciNumber);
+    for(int i = 0; i < workers.length; i++){
+      send(workers[i], messageFibonacciNumber);
     }
   }
 
+  /**
+   * Calculates the sum of all the numbers in the given list.
+   *
+   * @param numbers A List of integers for which the sum needs to be calculated.
+   * @return The sum of all the numbers in the list.
+   */
   public int sum(List<Integer> numbers) {
     int sum = 0;
     for (int num : numbers) {
@@ -113,9 +140,18 @@ public final class Master extends Behavior
     return sum;
   }
 
-  public void writeReportToFile(HashMap<Reference, ArrayList<Integer>> hashMap) {
+  /**
+   * Writes the report to a file and saves an XYChart as an image.
+   *
+   * @param hashMap A HashMap containing Reference keys and ArrayList<Integer> values.
+   *               It represents the bid values received from different workers.
+   * @param chart   An XYChart that represents some visualization for the report.
+   *               For example, a chart showing bid values over time.
+   */
+  public void writeReportToFile(HashMap<Reference, ArrayList<Integer>> hashMap, XYChart chart) {
     try (BufferedWriter writer = new BufferedWriter(new FileWriter("./results/output.txt"))) {
-        writer.write("REPORT\nNumber of workers: " + this.references.length + " Storage: " + this.isStorageEnable + "\n");
+        double executionTime = (this.endTime-this.startTime)/ 1000.0;
+        writer.write("REPORT\nNumber of workers: " + this.workers.length + " Storage: " + this.isStorageEnable + "\nExecution Time: " + executionTime + " minutes\n");
         for (Reference key : hashMap.keySet()) {
             List<Integer> values = hashMap.get(key);
             float mean = (float)sum(values)/values.size();
@@ -125,92 +161,176 @@ public final class Master extends Behavior
         }
         int totalcost = sum(this.prices);
         writer.write("Master :: Total price: " + totalcost + " Average transaction price: " + (float) totalcost/50 + " Simultaneous transaction count: " + this.totalDoubleChoose + " \n");
-   
+        BitmapEncoder.saveBitmap(chart, "./results/chart.png", BitmapFormat.PNG);
     } catch (IOException e) {
         e.printStackTrace();
     }
   }
 
+  /**
+   * Finish the process by recording the end time, creating an XYChart to visualize the price trend,
+   * and generating a report with the provided HashMap of worker bids. The generated report includes
+   * information about the execution time, worker bids, and other relevant details. The XYChart visualizes
+   * the price trend over tasks. The report is saved to a file, and the chart is saved as an image.
+   */
   public void finish(){
-    writeReportToFile(this.reports);
+    this.endTime = System.currentTimeMillis();
      XYChart chart = new XYChartBuilder().width(800).height(600).title("Price trend").xAxisTitle("Task")
             .yAxisTitle("Price").build();         // Add the data series to the chart
     chart.addSeries("Integers", null, this.prices);         // Show the chart
-    new SwingWrapper<>(chart).displayChart();
+    writeReportToFile(this.reports, chart);
+
+    //new SwingWrapper<>(chart).displayChart();
   }
 
+  /**
+   * Define message handlers for different message types using lambda expressions.
+   *
+   * @param c A CaseFactory used to define the message handlers for various message patterns.
+   *          This allows handling different types of messages received in the context of a distributed system.
+   *          The message handlers are defined as lambda expressions for START, FIBONACCIBIDPATTERN,
+   *          FIBONACCIRESULTPATTERN, KILL, and REPORTMESSAGEPATTERN message patterns.
+   */
   /** {@inheritDoc} **/
   @Override
   public void cases(final CaseFactory c) {
 
     MessageHandler start = (m) -> {
+      // This block of code will be executed when the START message is received.
+  
+      // Print a message indicating that the Master is online.
       System.out.print("M :: Master online\n");
+  
+      // Record the current time as the start time for execution.
+      this.startTime = System.currentTimeMillis();
+  
+      // Call the 'startFibonacci()' method, presumably to start the Fibonacci sequence.
       startFibonacci();
+  
       return null;
     };
 
     MessageHandler priceReceived = (m) -> {
-      MessageFibonacciPrice n = (MessageFibonacciPrice) m.getContent();
-      this.bidCounter++;
-      if(n.getMessageFibonacciPrice() == -1){
-        System.out.print("M :: \uD83D\uDEAB Worker with id: " + m.getSender() + " not available. \n");
-      }else{
-        System.out.print("M :: \uD83D\uDCB5 Worker with id: " + m.getSender() + " wants: " + n.getMessageFibonacciPrice() +" \n");
-        this.receivedBids.put(m.getSender(),n.getMessageFibonacciPrice());
-        if(n.getMessageFibonacciPrice() < this.minPriceReceived){
-          this.minPriceReceived = n.getMessageFibonacciPrice();
-        }
+      // This block of code will be executed when a message containing a FibonacciBid object is received.
+
+      // Get the FibonacciBid object from the message content.
+      FibonacciBid n = (FibonacciBid) m.getContent();
+
+      // Increment the bidsReceivedCounter.
+      this.bidsReceivedCounter++;
+
+      // Check if the FibonacciBid value is -1, indicating that the worker is not available.
+      if (n.getFibonacciBid() == -1) {
+          System.out.print("M :: \uD83D\uDEAB Worker with id: " + m.getSender() + " not available. \n");
+      } else {
+          // Print the message indicating that the worker with its ID wants the FibonacciBid value.
+          System.out.print("M :: \uD83D\uDCB5 Worker with id: " + m.getSender() + " wants: " + n.getFibonacciBid() + " \n");
+
+          // Store the valid FibonacciBid value received from the worker in the validBidsReceived HashMap.
+          this.validBidsReceived.put(m.getSender(), n.getFibonacciBid());
+
+          // Update the minimum FibonacciBid value if the received value is lower than the current minimum.
+          if (n.getFibonacciBid() < this.minPriceReceived) {
+              this.minPriceReceived = n.getFibonacciBid();
+          }
       }
-      if(bidCounter == references.length){
-        chooseWorker();
+
+      // Check if all workers have sent their bids (bidsReceivedCounter equals the number of workers).
+      // If all bids are received, proceed to choose the worker.
+      if (bidsReceivedCounter == workers.length) {
+          chooseWorker();
       }
+
       return null;
     };
 
     MessageHandler fibonacciNumberCalculatedReceived = (m) -> {
+      // This block of code will be executed when a message containing a FibonacciResult object is received.
+
+      // Get the FibonacciResult object from the message content.
       FibonacciResult n = (FibonacciResult) m.getContent();
-      this.totalAcceptedWorkers --;
-      System.out.print("M :: \u2705 Result received: " + n.getMessageFibonacciNumber() +" \n");
-      if(this.totalAcceptedWorkers == 0){
-        if(this.totalCycle == 2){
-            for (Reference reference : this.references) {
-              System.out.print("M :: Sending kill message to: "+ reference + "\n");
-              send(reference, Kill.KILL);
-            }
-          return null;
-        }
-        else {
-          startFibonacci();
-        }
+
+      // Decrement the totalAcceptedWorkers counter.
+      this.totalAcceptedWorkers--;
+
+      // Print the message indicating that the result has been received along with the Fibonacci number.
+      System.out.print("M :: \u2705 Result received: " + n.getMessageFibonacciNumber() + " \n");
+
+      // Check if all expected workers have sent their results (totalAcceptedWorkers equals 0).
+      if (this.totalAcceptedWorkers == 0) {
+          // If this is the last result received for the current cycle of worker selection:
+
+          // Check if the totalCycle has reached 50.
+          if (this.totalCycle == 50) {
+              // If the totalCycle is 50, it means the process has completed the simulation.
+
+              // Send the Kill message to all workers to terminate their operations.
+              for (Reference reference : this.workers) {
+                  System.out.print("M :: Sending kill message to: " + reference + "\n");
+                  send(reference, Kill.KILL);
+              }
+
+              return null;
+          } else {
+              // If the totalCycle is less than 50, start a new cycle by calling startFibonacci().
+              startFibonacci();
+          }
       }
 
       return null;
     };
 
+
     MessageHandler killHandler = (m) -> {
-        send(m.getSender(), Done.DONE);
-        System.out.println("M :: \uD83D\uDC80 Received kill message");
-        return Shutdown.SHUTDOWN;
-      };
+      // This block of code will be executed when a KILL message is received.
+
+      // Send a Done.DONE message to the sender of the KILL message to acknowledge the receipt.
+      send(m.getSender(), Done.DONE);
+
+      // Print a message indicating that a KILL message has been received.
+      System.out.println("M :: \uD83D\uDC80 Received kill message");
+
+      // Return the Shutdown.SHUTDOWN value as the result of message handling,
+      // indicating that the system should proceed with the shutdown process.
+      return Shutdown.SHUTDOWN;
+    };
 
     MessageHandler reportMessageHandler = (m) -> {
-        this.reportCounter++;
-        ArrayList<Integer> receivedReport = ((ReportMessage)m.getContent()).getAllBids();
-        System.out.println("M :: Received report bids from: " + m.getSender() + " " + receivedReport);
-        this.reports.put(m.getSender(), receivedReport);
-        if(this.reportCounter == this.references.length){
+      // This block of code will be executed when a message containing a ReportMessage object is received.
+
+      // Increment the reportCounter.
+      this.reportCounter++;
+
+      // Get the ReportMessage object from the message content and extract the received report bids.
+      ArrayList<Integer> receivedReport = ((ReportMessage) m.getContent()).getAllBids();
+
+      // Print a message indicating the receipt of report bids from the sender of the message.
+      System.out.println("M :: Received report bids from: " + m.getSender() + " " + receivedReport);
+
+      // Store the received report bids in the reports HashMap associated with the sender.
+      this.reports.put(m.getSender(), receivedReport);
+
+      // Check if all workers have sent their reports (reportCounter equals the number of workers).
+      if (this.reportCounter == this.workers.length) {
+          // If all reports are received, start writing the reports to a file and finish the process.
+
+          // Print a message indicating that all reports are received and writing on file is starting.
           System.out.println("M :: Received all reports, start writing on file");
+
+          // Call the finish() method to write the reports to a file and perform any final actions.
           finish();
-          send(getParent(), Kill.KILL); 
-        }
-        return null;
-      };
+
+          send(getParent(), Kill.KILL);
+      }
+
+      return null;
+    };
 
 		c.define(KILL, killHandler);
-    c.define(REPORTMESSAGE, reportMessageHandler);
+    c.define(REPORTMESSAGEPATTERN, reportMessageHandler);
     c.define(START, start);
-    c.define(FIBONACCIPRICEPATTERN, priceReceived);
-    c.define(FIBONACCIRECEIVEDNUMBER,fibonacciNumberCalculatedReceived );
+    c.define(FIBONACCIBIDPATTERN, priceReceived);
+    c.define(FIBONACCIRESULTPATTERN,fibonacciNumberCalculatedReceived );
 
   }
 
