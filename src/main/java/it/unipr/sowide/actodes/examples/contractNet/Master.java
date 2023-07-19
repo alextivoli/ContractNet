@@ -63,8 +63,8 @@ public final class Master extends Behavior
   /**
    * Constructor for the Master class.
    *
-   * @param workers An array of worker references representing the workers in the distributed system.
-   *                Each worker reference is an identifier for a worker node that participates in the system.
+   * @param workers An array of worker references representing the workers
+   *                Each worker reference is an identifier for a worker node
    * @param isStorageEnable A boolean indicating whether storage is enabled in the system.
    *                        If true, storage is enabled; if false, storage is disabled.
    */
@@ -75,17 +75,17 @@ public final class Master extends Behavior
   }
 
   /**
-   * Generate a random Fibonacci number within a specified range.
+   * Generate a random Fibonacci number.
    *
    * @return A random Fibonacci number.
    */
   public int RandomFibonacci(){
     Random random = new Random();
-    return random.nextInt(MAX) + MIN;
+    return random.nextInt((MAX-MIN)+1) + MIN;
   }
 
   /**
-   * Choose the worker to accept based on the received bids and the minimum price received.
+   * Choose the workers to accept based on the received bids.
    * If no valid bids were received, restart the Fibonacci sequence.
    * Otherwise, iterate through the valid bids and accept the workers with the minimum price received.
    * If multiple workers have the minimum price, accept all of them and record the occurrence of double choose.
@@ -144,14 +144,14 @@ public final class Master extends Behavior
    * Writes the report to a file and saves an XYChart as an image.
    *
    * @param hashMap A HashMap containing Reference keys and ArrayList<Integer> values.
-   *               It represents the bid values received from different workers.
-   * @param chart   An XYChart that represents some visualization for the report.
-   *               For example, a chart showing bid values over time.
+   *               It represents the bid values that were accepted by the master for every workers.
+   * @param chart   An XYChart that represents the price trend for the master.
+   *               
    */
   public void writeReportToFile(HashMap<Reference, ArrayList<Integer>> hashMap, XYChart chart) {
-    try (BufferedWriter writer = new BufferedWriter(new FileWriter("./results/output.txt"))) {
+    try (BufferedWriter writer = new BufferedWriter(new FileWriter("./results/output.txt", true))) {
         double executionTime = (this.endTime-this.startTime)/ 1000.0;
-        writer.write("REPORT\nNumber of workers: " + this.workers.length + " Storage: " + this.isStorageEnable + "\nExecution Time: " + executionTime + " minutes\n");
+        writer.write("REPORT\nNumber of workers: " + this.workers.length + " Storage: " + this.isStorageEnable + "\nExecution Time: " + executionTime + " seconds\n");
         for (Reference key : hashMap.keySet()) {
             List<Integer> values = hashMap.get(key);
             float mean = (float)sum(values)/values.size();
@@ -161,7 +161,8 @@ public final class Master extends Behavior
         }
         int totalcost = sum(this.prices);
         writer.write("Master :: Total price: " + totalcost + " Average transaction price: " + (float) totalcost/50 + " Simultaneous transaction count: " + this.totalDoubleChoose + " \n");
-        BitmapEncoder.saveBitmap(chart, "./results/chart.png", BitmapFormat.PNG);
+        String chartName = "./results/" + String.valueOf(this.workers.length) + this.isStorageEnable;
+        BitmapEncoder.saveBitmap(chart, chartName, BitmapFormat.PNG);
     } catch (IOException e) {
         e.printStackTrace();
     }
@@ -170,27 +171,19 @@ public final class Master extends Behavior
   /**
    * Finish the process by recording the end time, creating an XYChart to visualize the price trend,
    * and generating a report with the provided HashMap of worker bids. The generated report includes
-   * information about the execution time, worker bids, and other relevant details. The XYChart visualizes
+   * information about the execution time and worker bids. The XYChart visualizes
    * the price trend over tasks. The report is saved to a file, and the chart is saved as an image.
    */
   public void finish(){
     this.endTime = System.currentTimeMillis();
      XYChart chart = new XYChartBuilder().width(800).height(600).title("Price trend").xAxisTitle("Task")
-            .yAxisTitle("Price").build();         // Add the data series to the chart
-    chart.addSeries("Integers", null, this.prices);         // Show the chart
+            .yAxisTitle("Price").build();         
+    chart.addSeries("Integers", null, this.prices);        
     writeReportToFile(this.reports, chart);
 
     //new SwingWrapper<>(chart).displayChart();
   }
 
-  /**
-   * Define message handlers for different message types using lambda expressions.
-   *
-   * @param c A CaseFactory used to define the message handlers for various message patterns.
-   *          This allows handling different types of messages received in the context of a distributed system.
-   *          The message handlers are defined as lambda expressions for START, FIBONACCIBIDPATTERN,
-   *          FIBONACCIRESULTPATTERN, KILL, and REPORTMESSAGEPATTERN message patterns.
-   */
   /** {@inheritDoc} **/
   @Override
   public void cases(final CaseFactory c) {
