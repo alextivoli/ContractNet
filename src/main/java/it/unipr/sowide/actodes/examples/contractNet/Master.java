@@ -25,16 +25,14 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 
+
 /**
- * @TODO
- * The {@code Master} class defines a behavior that cyclically selects
- * randomly a {@code Worker} actor until the number of selected actor
- * becomes equal to the number of workers. Moreover, after the selection
- * of the worker, the master cyclically sends it a message and waits
- * for the answer until the number of sent messages becomes equal to
- * the a predefined value.
+ * The {@code Master} class defines a behavior for the Master
+ * The master sends task announcements with a random number to compute its correspondive fibonacci value
+ * The master choose which worker (or workers) select to compute fibonacci based on the bids that it receive from the workers
+ * After all the master make a report with all of the bids accepted and the price trend
  *
- * @see Worker
+ * @author Filippo Botti, Alex Tivoli
  *
 **/
 
@@ -169,12 +167,12 @@ public final class Master extends Behavior
   }
 
   /**
-   * Finish the process by recording the end time, creating an XYChart to visualize the price trend,
+   * saveReports the process by recording the end time, creating an XYChart to visualize the price trend,
    * and generating a report with the provided HashMap of worker bids. The generated report includes
    * information about the execution time and worker bids. The XYChart visualizes
    * the price trend over tasks. The report is saved to a file, and the chart is saved as an image.
    */
-  public void finish(){
+  public void saveReports(){
     this.endTime = System.currentTimeMillis();
      XYChart chart = new XYChartBuilder().width(800).height(600).title("Price trend").xAxisTitle("Task")
             .yAxisTitle("Price").build();         
@@ -188,48 +186,42 @@ public final class Master extends Behavior
   @Override
   public void cases(final CaseFactory c) {
 
+    /*
+     * This block of code will be executed when the START message is received.
+     * Record the current time as the start time for execution.
+     * Call the startFibonacci() method to start the system.
+     */
     MessageHandler start = (m) -> {
-      // This block of code will be executed when the START message is received.
-  
-      // Print a message indicating that the Master is online.
       System.out.print("M :: Master online\n");
-  
-      // Record the current time as the start time for execution.
       this.startTime = System.currentTimeMillis();
-  
-      // Call the 'startFibonacci()' method, presumably to start the Fibonacci sequence.
       startFibonacci();
-  
+
       return null;
     };
 
+    /*
+     * This block of code will be executed when a message containing a FibonacciBid object is received.
+     * Get the FibonacciBid object from the message content
+     * Check if the FibonacciBid value is -1, indicating that the worker is not available.
+     * Store the valid FibonacciBid value received from the worker in the validBidsReceived HashMap.
+     * Update the minimum FibonacciBid value if the received value is lower than the current minimum.
+     * Check if all workers have sent their bids
+     *  If all bids are received, proceed to choose the workers.
+     */
     MessageHandler priceReceived = (m) -> {
-      // This block of code will be executed when a message containing a FibonacciBid object is received.
-
-      // Get the FibonacciBid object from the message content.
       FibonacciBid n = (FibonacciBid) m.getContent();
-
-      // Increment the bidsReceivedCounter.
       this.bidsReceivedCounter++;
 
-      // Check if the FibonacciBid value is -1, indicating that the worker is not available.
       if (n.getFibonacciBid() == -1) {
           System.out.print("M :: \uD83D\uDEAB Worker with id: " + m.getSender() + " not available. \n");
       } else {
-          // Print the message indicating that the worker with its ID wants the FibonacciBid value.
           System.out.print("M :: \uD83D\uDCB5 Worker with id: " + m.getSender() + " wants: " + n.getFibonacciBid() + " \n");
-
-          // Store the valid FibonacciBid value received from the worker in the validBidsReceived HashMap.
           this.validBidsReceived.put(m.getSender(), n.getFibonacciBid());
-
-          // Update the minimum FibonacciBid value if the received value is lower than the current minimum.
           if (n.getFibonacciBid() < this.minPriceReceived) {
               this.minPriceReceived = n.getFibonacciBid();
           }
       }
 
-      // Check if all workers have sent their bids (bidsReceivedCounter equals the number of workers).
-      // If all bids are received, proceed to choose the worker.
       if (bidsReceivedCounter == workers.length) {
           chooseWorker();
       }
@@ -237,35 +229,26 @@ public final class Master extends Behavior
       return null;
     };
 
+    /*
+     * This block of code will be executed when a message containing a FibonacciResult object is received.
+     * Get the FibonacciResult object from the message content.
+     * Check if all expected workers have sent their results (totalAcceptedWorkers equals 0), if true
+     * and the totalCycle is 50, it means the process has completed the simulation and
+     * the master can send the Kill message to all workers to terminate their operations.
+     */
     MessageHandler fibonacciNumberCalculatedReceived = (m) -> {
-      // This block of code will be executed when a message containing a FibonacciResult object is received.
-
-      // Get the FibonacciResult object from the message content.
       FibonacciResult n = (FibonacciResult) m.getContent();
-
-      // Decrement the totalAcceptedWorkers counter.
       this.totalAcceptedWorkers--;
-
-      // Print the message indicating that the result has been received along with the Fibonacci number.
       System.out.print("M :: \u2705 Result received: " + n.getMessageFibonacciNumber() + " \n");
 
-      // Check if all expected workers have sent their results (totalAcceptedWorkers equals 0).
       if (this.totalAcceptedWorkers == 0) {
-          // If this is the last result received for the current cycle of worker selection:
-
-          // Check if the totalCycle has reached 50.
           if (this.totalCycle == 50) {
-              // If the totalCycle is 50, it means the process has completed the simulation.
-
-              // Send the Kill message to all workers to terminate their operations.
               for (Reference reference : this.workers) {
                   System.out.print("M :: Sending kill message to: " + reference + "\n");
                   send(reference, Kill.KILL);
               }
-
               return null;
           } else {
-              // If the totalCycle is less than 50, start a new cycle by calling startFibonacci().
               startFibonacci();
           }
       }
@@ -273,46 +256,34 @@ public final class Master extends Behavior
       return null;
     };
 
-
+    /*
+     * This block of code will be executed when a KILL message is received.
+     * Send a Done.DONE message to the sender of the KILL message to acknowledge the receipt.
+     * Terminate the execution
+     */
     MessageHandler killHandler = (m) -> {
-      // This block of code will be executed when a KILL message is received.
-
-      // Send a Done.DONE message to the sender of the KILL message to acknowledge the receipt.
       send(m.getSender(), Done.DONE);
-
-      // Print a message indicating that a KILL message has been received.
       System.out.println("M :: \uD83D\uDC80 Received kill message");
-
-      // Return the Shutdown.SHUTDOWN value as the result of message handling,
-      // indicating that the system should proceed with the shutdown process.
       return Shutdown.SHUTDOWN;
     };
 
+    /*
+     * This block of code will be executed when a message containing a ReportMessage object is received.
+     * Get the ReportMessage object from the message content and extract the received report bids.
+     * Store the received report bids in the reports HashMap associated with the sender.
+     * Check if all workers have sent their reports (reportCounter equals the number of workers).
+     * If all reports are received, start writing the reports to a file and finish the process.
+     * Then send a kill message to the Initiator
+     */
     MessageHandler reportMessageHandler = (m) -> {
-      // This block of code will be executed when a message containing a ReportMessage object is received.
-
-      // Increment the reportCounter.
       this.reportCounter++;
-
-      // Get the ReportMessage object from the message content and extract the received report bids.
       ArrayList<Integer> receivedReport = ((ReportMessage) m.getContent()).getAllBids();
-
-      // Print a message indicating the receipt of report bids from the sender of the message.
       System.out.println("M :: Received report bids from: " + m.getSender() + " " + receivedReport);
-
-      // Store the received report bids in the reports HashMap associated with the sender.
       this.reports.put(m.getSender(), receivedReport);
 
-      // Check if all workers have sent their reports (reportCounter equals the number of workers).
       if (this.reportCounter == this.workers.length) {
-          // If all reports are received, start writing the reports to a file and finish the process.
-
-          // Print a message indicating that all reports are received and writing on file is starting.
           System.out.println("M :: Received all reports, start writing on file");
-
-          // Call the finish() method to write the reports to a file and perform any final actions.
-          finish();
-
+          saveReports();
           send(getParent(), Kill.KILL);
       }
 

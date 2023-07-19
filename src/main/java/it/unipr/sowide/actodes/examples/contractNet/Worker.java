@@ -8,7 +8,6 @@ import it.unipr.sowide.actodes.examples.contractNet.messages.FibonacciBid;
 import it.unipr.sowide.actodes.examples.contractNet.messages.ReportMessage;
 import it.unipr.sowide.actodes.examples.contractNet.messages.TaskAnnouncement;
 import it.unipr.sowide.actodes.filtering.constraint.IsInstance;
-import it.unipr.sowide.actodes.interaction.Done;
 import it.unipr.sowide.actodes.registry.Reference;
 
 import java.math.BigInteger;
@@ -17,13 +16,12 @@ import java.util.HashMap;
 import java.util.Random;
 
 /**
- *
- * The {@code Worker} class defines a behavior that waits for messages
- * from a {@code Master} actor until it receives a {@code KILL} message.
- *
- * When it happens it kills itself.
- *
- * @see Master
+ * The {@code Worker} class defines a behavior for the Worker
+ * The worker receives task announcement from the master and make offers to the master
+ * If the master accepts the offer, the worker compute the fibonacci values of the number received and store it if the storage is enable
+ * The worker then send the fibonacci value to the master and wait for another value to compute
+ * After all the worker sends a report to the master with all of the accepted offers 
+ * @author Filippo Botti, Alex Tivoli
  *
 **/
 
@@ -83,7 +81,6 @@ public final class Worker extends Behavior
     if(!isStorageEnable){
       return fibonacciNumber;
     }
-
     if(fibonacciNumber <= this.greatherFibonacciStored){
       return 0;
     }else{
@@ -93,122 +90,95 @@ public final class Worker extends Behavior
   }
 
   /**
-   * Compute the Fibonacci number for a given positive integer n using recursion and dynamic programming.
+   * Compute the Fibonacci number for a given positive integer n using recursion.
    *
    * @param n The positive integer for which the Fibonacci number needs to be computed.
    * @return The Fibonacci number for the given positive integer n.
-   *         If the input n is less than or equal to 1, n itself is returned.
-   *         If storage is enabled, the Fibonacci number is computed using dynamic programming.
-   *         Otherwise, the Fibonacci number is computed using simple recursion.
    */
   private BigInteger computeFibonacci(BigInteger n){
       if (n.intValue() <= 1) {
         return n;
       }
-
       if(this.isStorageEnable){
         if(!this.fibonacciStorage.containsKey(n.intValue())){
           BigInteger fibonacci = computeFibonacci(n.subtract(BigInteger.ONE)).add(computeFibonacci(n.subtract(BigInteger.TWO)));
           this.fibonacciStorage.put(n.intValue(), fibonacci);
           this.greatherFibonacciStored = n.intValue();
         }
-
         return this.fibonacciStorage.get(n.intValue());
       }
       return computeFibonacci(n.subtract(BigInteger.ONE)).add(computeFibonacci(n.subtract(BigInteger.TWO)));
   }
 
-
-
-  /**
- * Define message handlers for different message types using lambda expressions.
- *
- * @param c A CaseFactory used to define the message handlers for various message patterns.
- *          This allows handling different types of messages received in the context of a distributed system.
- *          The message handlers are defined as lambda expressions for START, FIBONACCITASKPATTERN,
- *          BIDACCEPTED, and KILL message patterns.
- */
 /** {@inheritDoc} **/
 @Override
 public void cases(final CaseFactory c) {
-
+    
+    /*
+     * This block of code will be executed when the START message is received.
+     */
     MessageHandler h = (m) -> {
-        // This block of code will be executed when the START message is received.
         System.out.print("W :: Worker online \n");
         return null;
     };
 
+    /*
+     * This block of code will be executed when a taskTimeout message is received.
+     * Check if the current bid was accepted by the master.
+     * If the bid is accepted, add the current bid to the bidsAcceptedByMaster list, reset the kBid to 0 and
+     * send the FibonacciResult message to the master with the computed Fibonacci number.
+     * If the bid is not accepted, decrement the kBid by 1.
+     */
     MessageHandler taskTimeout = (m) -> {
-        // This block of code will be executed when a taskTimeout message is received.
-
-        // Check if the current bid is accepted by the master.
         if (this.isCurrentBidAccepted) {
-            // If the bid is accepted, print a message indicating the acceptance by the master.
             System.out.print("W :: \uD83E\uDD11 Bid accepted by Master \n");
-
-            // Add the current bid to the bidsAcceptedByMaster list.
             this.bidsAcceptedByMaster.add(this.bid);
-
-            // Reset the kBid to 0.
             this.kBid = 0;
-
-            // Send the FibonacciResult message to the master with the computed Fibonacci number.
             send(this.masterReference, new FibonacciResult(computeFibonacci(BigInteger.valueOf(this.fibonacciNumber))));
         } else {
-            // If the bid is not accepted, decrement the kBid by 1.
             this.kBid--;
         }
-
-        // Reset the flag isCurrentBidAccepted to false for the next bid.
         this.isCurrentBidAccepted = false;
 
         return null;
     };
 
+    /*
+     * This block of code will be executed when a masterAccepted message is received.
+     * Set the isCurrentBidAccepted flag to true, indicating that the current bid is accepted.
+     */
     MessageHandler masterAccepted = (m) -> {
-        // This block of code will be executed when a masterAccepted message is received.
-
-        // Set the isCurrentBidAccepted flag to true, indicating that the current bid is accepted.
         this.isCurrentBidAccepted = true;
 
         return null;
     };
 
+    /*
+     * This block of code will be executed when a message containing a TaskAnnouncement object is received.
+     * Extract the Fibonacci number from the TaskAnnouncement message.
+     * Generate a random value (1 or 2) to simulate worker availability.
+     * If the worker is available, calculate the bid using getFibonacciPrice method and kBid to add fariness and random to the bid.
+     * Ensure the bid is not negative (minimum bid is 0).
+     * Send the FibonacciBid message to the master and set a timeout for the taskTimeout message.
+     */
     MessageHandler fibonacciNumberReceived = (m) -> {
-        // This block of code will be executed when a message containing a TaskAnnouncement object is received.
 
-        // Get the sender of the message (presumably the master) and store it in the masterReference variable.
         this.masterReference = m.getSender();
-
-        // Extract the Fibonacci number from the TaskAnnouncement message.
         TaskAnnouncement n = (TaskAnnouncement) m.getContent();
         System.out.print("W :: Received fibonacci number to compute: " + n.getMessageFibonacciNumber() +" \n");
         this.fibonacciNumber = n.getMessageFibonacciNumber();
-
-        // Generate a random value (1 or 2) to simulate worker availability.
         Random random = new Random();
         int isAvailable = random.nextInt(2) + 1;
 
-        // Check if the worker is available (isAvailable = 1).
         if (isAvailable == 1) {
-            // If the worker is available, calculate the bid using getFibonacciPrice method and kBid.
             this.bid = this.getFibonacciPrice(n.getMessageFibonacciNumber()) + this.kBid * 5;
-
-            // Ensure the bid is not negative (minimum bid is 0).
             if (this.bid < 0) {
                 this.bid = 0;
             }
-
-            // Print a message indicating the worker is available and sending the price offer.
             System.out.print("W :: I'm available, sending price offer: " + bid + "\n");
-
-            // Create a FibonacciBid message with the bid value.
             FibonacciBid FibonacciBid = new FibonacciBid(this.bid);
-
-            // Send the FibonacciBid message to the master and set a timeout for the taskTimeout message.
             future(m.getSender(), FibonacciBid, 3000, taskTimeout);
         } else {
-            // If the worker is not available (isAvailable = 2), send a bid of -1 to indicate unavailability.
             System.out.print("W :: I'm not available, sending -1 \n");
             FibonacciBid FibonacciBid = new FibonacciBid(-1);
             send(m.getSender(), FibonacciBid);
@@ -217,17 +187,17 @@ public void cases(final CaseFactory c) {
         return null;
     };
 
+    /*
+     * This block of code will be executed when a KILL message is received.
+     * Send a report with all of the accepted bid to the worker
+     */
     MessageHandler killHandler = (m) -> {
-        // This block of code will be executed when a KILL message is received.
 
-        // Print a message indicating the receipt of a KILL message and send the trend to the master.
         System.out.println("W :: \uD83D\uDC80 Received kill message, sending my trend to the master");
         send(m.getSender(), new ReportMessage(this.bidsAcceptedByMaster));
-
         return Shutdown.SHUTDOWN;
     };
 
-    // Define message handlers for different message patterns.
     c.define(KILL, killHandler);
     c.define(FIBONACCITASKPATTERN, fibonacciNumberReceived);
     c.define(BIDACCEPTED, masterAccepted);
