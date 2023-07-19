@@ -8,6 +8,7 @@ import it.unipr.sowide.actodes.examples.contractNet.messages.FibonacciBid;
 import it.unipr.sowide.actodes.examples.contractNet.messages.ReportMessage;
 import it.unipr.sowide.actodes.examples.contractNet.messages.TaskAnnouncement;
 import it.unipr.sowide.actodes.filtering.constraint.IsInstance;
+import it.unipr.sowide.actodes.interaction.Error;
 import it.unipr.sowide.actodes.registry.Reference;
 
 import java.math.BigInteger;
@@ -63,6 +64,7 @@ public final class Worker extends Behavior
     Random random = new Random();
     this.kBid = random.nextInt(5);
     this.fibonacciStorage.put(0,BigInteger.ZERO);
+    this.fibonacciStorage.put(1,BigInteger.ONE);
   }
 
   /**
@@ -95,20 +97,46 @@ public final class Worker extends Behavior
    * @param n The positive integer for which the Fibonacci number needs to be computed.
    * @return The Fibonacci number for the given positive integer n.
    */
-  private BigInteger computeFibonacci(BigInteger n){
-      if (n.intValue() <= 1) {
+  // private BigInteger computeFibonacci(BigInteger n){
+  //     if (n.intValue() <= 1) {
+  //       return n;
+  //     }
+  //     if(this.isStorageEnable){
+  //       if(!this.fibonacciStorage.containsKey(n.intValue())){
+  //         BigInteger fibonacci = computeFibonacci(n.subtract(BigInteger.ONE)).add(computeFibonacci(n.subtract(BigInteger.TWO)));
+  //         this.fibonacciStorage.put(n.intValue(), fibonacci);
+  //         this.greatherFibonacciStored = n.intValue();
+  //       }
+  //       return this.fibonacciStorage.get(n.intValue());
+  //     }
+  //     return computeFibonacci(n.subtract(BigInteger.ONE)).add(computeFibonacci(n.subtract(BigInteger.TWO)));
+  // }
+  private BigInteger computeFibonacci(BigInteger n) {
+    if (n.intValue() <= 1) {
         return n;
-      }
-      if(this.isStorageEnable){
-        if(!this.fibonacciStorage.containsKey(n.intValue())){
-          BigInteger fibonacci = computeFibonacci(n.subtract(BigInteger.ONE)).add(computeFibonacci(n.subtract(BigInteger.TWO)));
-          this.fibonacciStorage.put(n.intValue(), fibonacci);
-          this.greatherFibonacciStored = n.intValue();
+    }
+
+    if (isStorageEnable) {
+        for (int i = 2; i <= n.intValue(); i++) {
+            if (!fibonacciStorage.containsKey(i)) {
+                BigInteger fibonacci = fibonacciStorage.get(i - 1).add(fibonacciStorage.get(i - 2));
+                fibonacciStorage.put(i, fibonacci);
+            }
         }
-        return this.fibonacciStorage.get(n.intValue());
-      }
-      return computeFibonacci(n.subtract(BigInteger.ONE)).add(computeFibonacci(n.subtract(BigInteger.TWO)));
-  }
+        return fibonacciStorage.get(n.intValue());
+    }
+
+    BigInteger prevFib = BigInteger.ZERO;
+    BigInteger currentFib = BigInteger.ONE;
+
+    for (int i = 2; i <= n.intValue(); i++) {
+        BigInteger nextFib = prevFib.add(currentFib);
+        prevFib = currentFib;
+        currentFib = nextFib;
+    }
+
+    return currentFib;
+}
 
 /** {@inheritDoc} **/
 @Override
@@ -197,7 +225,15 @@ public void cases(final CaseFactory c) {
         send(m.getSender(), new ReportMessage(this.bidsAcceptedByMaster));
         return Shutdown.SHUTDOWN;
     };
+    MessageHandler error = (m) -> {
 
+        System.out.println("W :: \uD83D\uDC80 \uD83D\uDC80 \uD83D\uDC80 Received error message, sending my trend to the master. " + m.getContent());
+        return null;
+        // send(m.getSender(), new ReportMessage(this.bidsAcceptedByMaster));
+        // return Shutdown.SHUTDOWN;
+    };
+
+    c.define(TIMEOUT, error);
     c.define(KILL, killHandler);
     c.define(FIBONACCITASKPATTERN, fibonacciNumberReceived);
     c.define(BIDACCEPTED, masterAccepted);
