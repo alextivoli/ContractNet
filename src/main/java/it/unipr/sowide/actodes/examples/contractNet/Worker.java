@@ -186,7 +186,7 @@ public void cases(final CaseFactory c) {
      * Extract the Fibonacci number from the TaskAnnouncement message.
      * Generate a random value (1 or 2) to simulate worker availability.
      * If the worker is available, calculate the bid using getFibonacciPrice method and kBid to add fariness and random to the bid.
-     * Ensure the bid is not negative (minimum bid is 0).
+     * Ensure the bid is not negative (minimum bid is 5).
      * Send the FibonacciBid message to the master and set a timeout for the taskTimeout message.
      */
     MessageHandler fibonacciNumberReceived = (m) -> {
@@ -201,7 +201,7 @@ public void cases(final CaseFactory c) {
         if (isAvailable == 1) {
             this.bid = this.getFibonacciPrice(n.getMessageFibonacciNumber()) + this.kBid * 5;
             if (this.bid < 0) {
-                this.bid = 0;
+                this.bid = 5;
             }
             System.out.print("W :: I'm available, sending price offer: " + bid + "\n");
             FibonacciBid FibonacciBid = new FibonacciBid(this.bid);
