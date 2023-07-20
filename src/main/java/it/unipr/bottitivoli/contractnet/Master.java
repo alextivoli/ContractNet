@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
@@ -148,7 +149,16 @@ public final class Master extends Behavior
    *               
    */
   public void writeReportToFile(HashMap<Reference, ArrayList<Integer>> hashMap, XYChart chart) {
-    try (BufferedWriter writer = new BufferedWriter(new FileWriter("./results/output.txt", true))) {
+    String filePath = "./results/output.txt";
+    File file = new File(filePath);
+    if (!file.exists()) {
+        try {
+          file.createNewFile();
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+    }
+    try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath, true))) {
         double executionTime = (this.endTime-this.startTime)/ 1000.0;
         writer.write("REPORT\nNumber of workers: " + this.workers.length + " Storage: " + this.isStorageEnable + "\nExecution Time: " + executionTime + " seconds\n");
         for (Reference key : hashMap.keySet()) {
