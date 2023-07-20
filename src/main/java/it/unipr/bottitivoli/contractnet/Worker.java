@@ -3,11 +3,11 @@ package it.unipr.bottitivoli.contractnet;
 
 import it.unipr.sowide.actodes.actor.*;
 import it.unipr.sowide.actodes.actor.Shutdown;
-import it.unipr.sowide.actodes.examples.contractNet.messages.FibonacciResult;
-import it.unipr.sowide.actodes.examples.contractNet.messages.AcknowledgmentMessage;
-import it.unipr.sowide.actodes.examples.contractNet.messages.FibonacciBid;
-import it.unipr.sowide.actodes.examples.contractNet.messages.ReportMessage;
-import it.unipr.sowide.actodes.examples.contractNet.messages.TaskAnnouncement;
+import it.unipr.bottitivoli.contractnet.messages.FibonacciResult;
+import it.unipr.bottitivoli.contractnet.messages.AcknowledgmentMessage;
+import it.unipr.bottitivoli.contractnet.messages.FibonacciBid;
+import it.unipr.bottitivoli.contractnet.messages.ReportMessage;
+import it.unipr.bottitivoli.contractnet.messages.TaskAnnouncement;
 import it.unipr.sowide.actodes.filtering.constraint.IsInstance;
 import it.unipr.sowide.actodes.registry.Reference;
 
